@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>4秒後の自分</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#10131b;color:#eef3ff;display:grid;place-items:center}main{width:min(94vw,820px);padding:16px 0 24px}h1{font-size:clamp(24px,5vw,38px);margin:0 0 4px}.lead{margin:0 0 12px;color:#b7c5de;line-height:1.5}.wrap{position:relative;border:1px solid #2f3a51;border-radius:16px;overflow:hidden;background:#171c28;box-shadow:0 18px 50px #0008}canvas{width:100%;height:auto;display:block;aspect-ratio:3/2;touch-action:none}.hud{position:absolute;left:12px;top:10px;display:flex;gap:8px;flex-wrap:wrap;pointer-events:none}.pill{background:#0a0d14cc;border:1px solid #44516b;border-radius:999px;padding:6px 10px;font-size:13px}.message{position:absolute;inset:auto 12px 12px;background:#090c13d9;border:1px solid #43516c;border-radius:12px;padding:10px 12px;line-height:1.45;pointer-events:none;min-height:46px}.controls{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-top:12px;align-items:center}.dpad{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,48px);gap:6px;grid-column:2}button{border:1px solid #4b5975;background:#1b2332;color:#eef3ff;border-radius:12px;font-weight:700;touch-action:none;user-select:none;-webkit-user-select:none}button:active,button.active{background:#33405a;transform:translateY(1px)}#up{grid-column:2;grid-row:1}#left{grid-column:1;grid-row:2}#down{grid-column:2;grid-row:2}#right{grid-column:3;grid-row:2}#restart{justify-self:end;min-height:48px;padding:0 16px}.tiny{color:#8291ab;font-size:12px;margin-top:8px;text-align:center}@media(min-width:700px){.dpad{display:none}.controls{grid-template-columns:1fr auto}.controls::before{content:"移動: WASD / 矢印キー";color:#93a4c0}.tiny{text-align:left}}
+</style>
+</head>
+<body>
+<main>
+<h1>4秒後の自分</h1>
+<p class="lead">4秒前のあなたが水色の残像として追いかけてきます。黄色い2つの床スイッチを「今の自分」と「4秒後の自分」で同時に踏み、出口を開けてください。</p>
+<div class="wrap">
+<canvas id="game" width="720" height="480" aria-label="ゲーム画面"></canvas>
+<div class="hud"><div class="pill" id="delayLabel">残像生成まで 4.0秒</div><div class="pill" id="doorLabel">出口: LOCKED</div></div>
+<div class="message" id="message">まず片方のスイッチへ。4秒後、その場所に残像が来ます。</div>
+</div>
+<div class="controls">
+<div class="dpad" aria-label="移動ボタン"><button id="up" data-key="ArrowUp">▲</button><button id="left" data-key="ArrowLeft">◀</button><button id="down" data-key="ArrowDown">▼</button><button id="right" data-key="ArrowRight">▶</button></div>
+<button id="restart">やり直す</button>
+</div>
+<div class="tiny">出口は一度開けば閉まりません。壁にぶつかっても失敗にはなりません。</div>
+</main>
+<script>
+(()=>{
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),message=document.getElementById('message'),delayLabel=document.getElementById('delayLabel'),doorLabel=document.getElementById('doorLabel');
+const W=canvas.width,H=canvas.height,DELAY=4,SPEED=150,R=13;
+const switches=[{x:120,y:400,r:28},{x:300,y:400,r:28}],exit={x:650,y:55,w:42,h:78},walls=[{x:250,y:70,w:30,h:260},{x:400,y:150,w:30,h:260}];
+const held=new Set();let player,ghost,history,elapsed,lastTime,unlocked,completed,raf;
+function reset(){player={x:75,y:405};ghost=null;history=[];elapsed=0;lastTime=performance.now();unlocked=false;completed=false;held.clear();message.textContent='まず片方のスイッチへ。4秒後、その場所に残像が来ます。';doorLabel.textContent='出口: LOCKED';window.__DAILY_GAME__.state='playing'}
+function circleRectCollision(x,y,r,rect){const cx=Math.max(rect.x,Math.min(x,rect.x+rect.w)),cy=Math.max(rect.y,Math.min(y,rect.y+rect.h)),dx=x-cx,dy=y-cy;return dx*dx+dy*dy<r*r}
+function canStand(x,y){if(x<R||x>W-R||y<R||y>H-R)return false;for(const wall of walls)if(circleRectCollision(x,y,R,wall))return false;if(!unlocked&&circleRectCollision(x,y,R,exit))return false;return true}
+function move(dt){let dx=0,dy=0;if(held.has('ArrowLeft')||held.has('a'))dx--;if(held.has('ArrowRight')||held.has('d'))dx++;if(held.has('ArrowUp')||held.has('w'))dy--;if(held.has('ArrowDown')||held.has('s'))dy++;if(!dx&&!dy)return;const len=Math.hypot(dx,dy);dx/=len;dy/=len;const nx=player.x+dx*SPEED*dt,ny=player.y+dy*SPEED*dt;if(canStand(nx,player.y))player.x=nx;if(canStand(player.x,ny))player.y=ny}
+function sampleGhost(){const target=elapsed-DELAY;if(target<0){ghost=null;return}let chosen=history[0];for(let i=history.length-1;i>=0;i--)if(history[i].t<=target){chosen=history[i];break}ghost=chosen?{x:chosen.x,y:chosen.y}:null}
+function onSwitch(actor,sw){return!!actor&&Math.hypot(actor.x-sw.x,actor.y-sw.y)<=R+sw.r-3}
+function updatePuzzle(){const s0=onSwitch(player,switches[0])||onSwitch(ghost,switches[0]),s1=onSwitch(player,switches[1])||onSwitch(ghost,switches[1]);if(!unlocked&&s0&&s1&&ghost){unlocked=true;message.textContent='同期成功！出口が開きました。緑の出口へ！';doorLabel.textContent='出口: OPEN'}if(unlocked&&!completed){const inside=player.x>exit.x&&player.x<exit.x+exit.w&&player.y>exit.y&&player.y<exit.y+exit.h;if(inside){completed=true;window.__DAILY_GAME__.state='won';message.textContent='CLEAR! 4秒後の自分との共同作業、成功。'}}if(!unlocked){const remaining=Math.max(0,DELAY-elapsed);delayLabel.textContent=ghost?'残像: 4秒遅れで追跡中':`残像生成まで ${remaining.toFixed(1)}秒`;if(ghost&&!(s0&&s1)&&(s0||s1))message.textContent='片方は踏めています。もう片方へ移動するタイミングを合わせよう。'}else delayLabel.textContent='残像: 4秒遅れ'}
+function update(dt){if(completed)return;elapsed+=dt;move(dt);history.push({t:elapsed,x:player.x,y:player.y});while(history.length&&history[0].t<elapsed-DELAY-.25)history.shift();sampleGhost();updatePuzzle()}
+function grid(){ctx.strokeStyle='#20283a';ctx.lineWidth=1;for(let x=0;x<W;x+=40){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}}
+function drawSwitch(sw,active){ctx.save();ctx.translate(sw.x,sw.y);ctx.fillStyle=active?'#ffe36a':'#7b6828';ctx.strokeStyle='#ffe98d';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,sw.r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle=active?'#fff8bf':'#b29a4d';ctx.beginPath();ctx.arc(0,0,9,0,Math.PI*2);ctx.fill();ctx.restore()}
+function actor(a,color,label,alpha=1){if(!a)return;ctx.save();ctx.globalAlpha=alpha;ctx.fillStyle=color;ctx.shadowColor=color;ctx.shadowBlur=18;ctx.beginPath();ctx.arc(a.x,a.y,R,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.font='bold 12px system-ui';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.fillText(label,a.x,a.y-20);ctx.restore()}
+function render(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#151b29';ctx.fillRect(0,0,W,H);grid();for(const wall of walls){ctx.fillStyle='#30394c';ctx.fillRect(wall.x,wall.y,wall.w,wall.h);ctx.strokeStyle='#53617b';ctx.strokeRect(wall.x+.5,wall.y+.5,wall.w-1,wall.h-1)}drawSwitch(switches[0],onSwitch(player,switches[0])||onSwitch(ghost,switches[0]));drawSwitch(switches[1],onSwitch(player,switches[1])||onSwitch(ghost,switches[1]));ctx.fillStyle=unlocked?'#2cd67f':'#7b3542';ctx.fillRect(exit.x,exit.y,exit.w,exit.h);ctx.strokeStyle=unlocked?'#80ffb7':'#cc6679';ctx.lineWidth=3;ctx.strokeRect(exit.x,exit.y,exit.w,exit.h);ctx.save();ctx.translate(exit.x+exit.w/2,exit.y+exit.h/2);ctx.rotate(-Math.PI/2);ctx.fillStyle='#fff';ctx.font='bold 12px system-ui';ctx.textAlign='center';ctx.fillText('EXIT',0,4);ctx.restore();actor(ghost,'#57d7ff','4秒前',.62);actor(player,'#ff6f91','いま');if(completed){ctx.fillStyle='#07120ccc';ctx.fillRect(0,0,W,H);ctx.fillStyle='#8affb8';ctx.textAlign='center';ctx.font='bold 44px system-ui';ctx.fillText('CLEAR!',W/2,H/2-10);ctx.fillStyle='#dfffea';ctx.font='18px system-ui';ctx.fillText('「やり直す」で再挑戦できます',W/2,H/2+28)}}
+function frame(now){const dt=Math.min(.033,(now-lastTime)/1000);lastTime=now;update(dt);render();raf=requestAnimationFrame(frame)}
+const norm=k=>k.length===1?k.toLowerCase():k;addEventListener('keydown',e=>{const k=norm(e.key);if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','w','a','s','d'].includes(k)){held.add(k);e.preventDefault()}if(k==='r')reset()},{passive:false});addEventListener('keyup',e=>held.delete(norm(e.key)));
+document.querySelectorAll('[data-key]').forEach(btn=>{const key=btn.dataset.key,down=e=>{e.preventDefault();held.add(key);btn.classList.add('active')},up=e=>{e.preventDefault();held.delete(key);btn.classList.remove('active')};btn.addEventListener('pointerdown',down);btn.addEventListener('pointerup',up);btn.addEventListener('pointercancel',up);btn.addEventListener('pointerleave',up)});document.getElementById('restart').addEventListener('click',reset);
+window.__DAILY_GAME__={ready:true,state:'playing',restart:reset};reset();cancelAnimationFrame(raf);raf=requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
