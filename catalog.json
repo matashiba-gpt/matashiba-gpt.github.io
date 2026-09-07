@@ -1,4 +1,12 @@
 {
   "schema_version": 1,
-  "games": []
+  "games": [
+    {
+      "id": "2026-09-07-echo-switch",
+      "title": "4秒後の自分",
+      "date": "2026-09-07",
+      "path": "games/2026-09-07-echo-switch/",
+      "summary": "4秒前の自分と協力して2つのスイッチを同時に踏む1画面パズル。"
+    }
+  ]
 }
