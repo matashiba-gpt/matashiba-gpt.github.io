@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Rule Shift</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0d1020;color:#eef2ff}main{width:min(94vw,760px);margin:0 auto;padding:18px 0 28px}h1{margin:0 0 4px;font-size:clamp(28px,7vw,44px)}.lead{margin:0 0 14px;color:#b9c3df;line-height:1.5}.panel{border:1px solid #303a60;border-radius:18px;background:#151a30;overflow:hidden;box-shadow:0 18px 50px #0007}.hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px;border-bottom:1px solid #303a60}.stat{background:#0d1225;border:1px solid #36436c;border-radius:12px;padding:8px 10px;text-align:center}.stat b{display:block;font-size:20px}.rule{padding:12px 14px;text-align:center;font-weight:800;font-size:clamp(17px,4vw,24px);background:#20294a;transition:.18s}.rule.flash{transform:scale(1.02);background:#394a80}.arena{min-height:260px;display:grid;place-items:center;padding:24px;position:relative}.symbol{width:132px;height:132px;border-radius:28px;display:grid;place-items:center;font-size:58px;font-weight:900;border:3px solid #fff8;box-shadow:0 18px 45px #0007;transition:transform .08s,opacity .12s}.symbol.hit{transform:scale(1.09)}.symbol.miss{transform:translateX(10px) rotate(4deg)}.prompt{position:absolute;bottom:10px;color:#8591b7;font-size:12px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.choice{min-height:76px;border:1px solid #465483;border-radius:16px;background:#1b2340;color:#fff;font-weight:900;font-size:18px;touch-action:manipulation}.choice:active{transform:translateY(1px);background:#2b3761}.message{min-height:48px;margin-top:10px;padding:10px 12px;border:1px solid #303a60;border-radius:12px;background:#11162a;color:#c5d0ed}.actions{display:flex;justify-content:flex-end;margin-top:10px}#restart{min-height:46px;padding:0 18px;border-radius:12px;border:1px solid #465483;background:#1b2340;color:#fff;font-weight:800}.tiny{font-size:12px;color:#7d89aa;margin-top:8px}.good{color:#7dffb2}.bad{color:#ff8f9f}@media(max-width:520px){.hud{grid-template-columns:1fr 1fr}.hud .stat:last-child{grid-column:1/-1}.arena{min-height:220px}.symbol{width:112px;height:112px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Rule Shift</h1>
+<p class="lead">中央の記号を、今のルールに合わせて左右へ仕分け。連続正解すると速くなり、数問ごとにルールそのものが切り替わります。</p>
+<section class="panel" aria-label="Rule Shift game">
+<div class="hud"><div class="stat">SCORE<b id="score">0</b></div><div class="stat">MISTAKES<b id="mistakes">0 / 3</b></div><div class="stat">STREAK<b id="streak">0</b></div></div>
+<div class="rule" id="rule">ルールを準備中…</div>
+<div class="arena"><div class="symbol" id="symbol">?</div><div class="prompt" id="prompt">← A / → L でも操作できます</div></div>
+</section>
+<div class="controls"><button class="choice" id="left">← LEFT</button><button class="choice" id="right">RIGHT →</button></div>
+<div class="message" id="message">正しい側を選んでください。</div>
+<div class="actions"><button id="restart">やり直す</button></div>
+<div class="tiny">30点でクリア。3回ミスで終了。ルール変更直後は表示を必ず確認してください。</div>
+</main>
+<script>
+(()=>{
+const scoreEl=document.getElementById('score'),mistakesEl=document.getElementById('mistakes'),streakEl=document.getElementById('streak'),ruleEl=document.getElementById('rule'),symbolEl=document.getElementById('symbol'),messageEl=document.getElementById('message');
+const leftBtn=document.getElementById('left'),rightBtn=document.getElementById('right'),restartBtn=document.getElementById('restart');
+const items=[
+ {glyph:'▲',shape:'triangle',tone:'warm',size:'large'},
+ {glyph:'●',shape:'round',tone:'cool',size:'large'},
+ {glyph:'◆',shape:'diamond',tone:'warm',size:'small'},
+ {glyph:'■',shape:'square',tone:'cool',size:'small'},
+ {glyph:'△',shape:'triangle',tone:'cool',size:'small'},
+ {glyph:'○',shape:'round',tone:'warm',size:'small'},
+ {glyph:'◇',shape:'diamond',tone:'cool',size:'large'},
+ {glyph:'□',shape:'square',tone:'warm',size:'large'}
+];
+const rules=[
+ {name:'角が3つなら LEFT / それ以外 RIGHT',side:i=>i.shape==='triangle'?'left':'right'},
+ {name:'丸い記号なら LEFT / それ以外 RIGHT',side:i=>i.shape==='round'?'left':'right'},
+ {name:'暖色なら LEFT / 寒色なら RIGHT',side:i=>i.tone==='warm'?'left':'right'},
+ {name:'小さい記号なら LEFT / 大きい記号なら RIGHT',side:i=>i.size==='small'?'left':'right'}
+];
+let score,mistakes,streak,ruleIndex,current,locked,timer,ended,lastRuleChange;
+function colorFor(item){return item.tone==='warm'?'#ff6b70':'#55b8ff'}
+function pickRule(forceDifferent=false){let next=Math.floor(Math.random()*rules.length);if(forceDifferent&&rules.length>1){while(next===ruleIndex)next=Math.floor(Math.random()*rules.length)}ruleIndex=next;ruleEl.textContent=rules[ruleIndex].name;ruleEl.classList.add('flash');setTimeout(()=>ruleEl.classList.remove('flash'),180);lastRuleChange=score}
+function nextItem(){if(ended)return;current=items[Math.floor(Math.random()*items.length)];symbolEl.textContent=current.glyph;symbolEl.style.background=colorFor(current);symbolEl.style.fontSize=current.size==='small'?'38px':'68px';symbolEl.style.opacity='1';locked=false;clearTimeout(timer);const delay=Math.max(1450,3200-score*45-streak*30);timer=setTimeout(()=>answer('timeout'),delay)}
+function refresh(){scoreEl.textContent=score;mistakesEl.textContent=`${mistakes} / 3`;streakEl.textContent=streak}
+function finish(win){ended=true;locked=true;clearTimeout(timer);window.__DAILY_GAME__.state=win?'won':'lost';messageEl.innerHTML=win?'<span class="good">CLEAR! 30点到達。ルール変化への適応成功。</span>':'<span class="bad">GAME OVER。3回ミスしました。</span>';symbolEl.textContent=win?'✓':'×';symbolEl.style.fontSize='58px';symbolEl.style.background=win?'#2b8f63':'#8f3341'}
+function answer(side){if(locked||ended)return;locked=true;clearTimeout(timer);const expected=rules[ruleIndex].side(current);const correct=side===expected;if(correct){score++;streak++;symbolEl.classList.add('hit');messageEl.innerHTML=`<span class="good">正解。</span> ${expected.toUpperCase()} へ仕分けました。`;if(score>=30){refresh();setTimeout(()=>finish(true),110);return}}else{mistakes++;streak=0;symbolEl.classList.add('miss');const reason=side==='timeout'?'時間切れ':`${side.toUpperCase()} は不正解`;messageEl.innerHTML=`<span class="bad">${reason}。</span> 正解は ${expected.toUpperCase()}。`;if(mistakes>=3){refresh();setTimeout(()=>finish(false),160);return}}
+refresh();setTimeout(()=>{symbolEl.classList.remove('hit','miss');if(score>0&&score-lastRuleChange>=5)pickRule(true);nextItem()},190)}
+function reset(){clearTimeout(timer);score=0;mistakes=0;streak=0;ruleIndex=-1;current=null;locked=false;ended=false;lastRuleChange=0;window.__DAILY_GAME__.state='playing';messageEl.textContent='正しい側を選んでください。';pickRule(false);refresh();nextItem()}
+leftBtn.addEventListener('click',()=>answer('left'));rightBtn.addEventListener('click',()=>answer('right'));restartBtn.addEventListener('click',reset);
+addEventListener('keydown',e=>{if(e.repeat)return;const k=e.key.toLowerCase();if(k==='a'||e.key==='ArrowLeft'){answer('left');e.preventDefault()}if(k==='l'||e.key==='ArrowRight'){answer('right');e.preventDefault()}if(k==='r')reset()},{passive:false});
+window.__DAILY_GAME__={ready:true,state:'playing',restart:reset};reset();
+})();
+</script>
+</body>
+</html>
