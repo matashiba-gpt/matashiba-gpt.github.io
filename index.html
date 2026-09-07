@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Daily Game Lab</title>
+  <meta name="description" content="1日1個、小さなゲームアイデアを作って公開する実験場。" />
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { max-width: 920px; margin: 0 auto; padding: 48px 20px 80px; line-height: 1.6; }
+    header { margin-bottom: 40px; }
+    h1 { font-size: clamp(2rem, 7vw, 4rem); line-height: 1; margin: 0 0 12px; }
+    .sub { opacity: .72; margin: 0; }
+    .status { margin-top: 32px; padding: 20px; border: 1px solid currentColor; border-radius: 14px; }
+    .games { display: grid; gap: 16px; margin-top: 28px; }
+    .game { display: block; padding: 18px; border: 1px solid currentColor; border-radius: 14px; color: inherit; text-decoration: none; }
+    .game:hover { transform: translateY(-1px); }
+    .meta { opacity: .65; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Daily Game Lab</h1>
+    <p class="sub">違うものを考える。小さく作る。今日出す。</p>
+  </header>
+
+  <main>
+    <section class="status">
+      <strong>準備中</strong>
+      <p>ここに毎日のゲームが追加されます。</p>
+    </section>
+
+    <section>
+      <h2>Games</h2>
+      <div id="games" class="games"></div>
+    </section>
+  </main>
+
+  <script>
+    fetch('./catalog.json', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('catalog unavailable')))
+      .then(data => {
+        const root = document.getElementById('games');
+        const games = Array.isArray(data.games) ? [...data.games].reverse() : [];
+        if (!games.length) {
+          root.innerHTML = '<p class="meta">まだ公開されたゲームはありません。</p>';
+          return;
+        }
+        root.innerHTML = games.map(game => `
+          <a class="game" href="${game.path}">
+            <strong>${game.title}</strong>
+            <div class="meta">${game.date}${game.summary ? ' · ' + game.summary : ''}</div>
+          </a>
+        `).join('');
+      })
+      .catch(() => {
+        document.getElementById('games').innerHTML = '<p class="meta">カタログを読み込めませんでした。</p>';
+      });
+  </script>
+</body>
+</html>
