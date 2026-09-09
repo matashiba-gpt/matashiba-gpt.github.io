@@ -8,34 +8,46 @@
     :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
     html, body { width: 100%; height: 100%; margin: 0; background: #090c12; overflow: hidden; }
+    body { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    .player-header {
+      min-height: calc(52px + env(safe-area-inset-top));
+      padding: max(8px, env(safe-area-inset-top)) 14px 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255,255,255,.14);
+      background: #0d1119;
+      color: #fff;
+    }
     .home {
-      position: fixed;
-      z-index: 10;
-      top: max(12px, env(safe-area-inset-top));
-      left: max(12px, env(safe-area-inset-left));
       display: inline-flex;
       align-items: center;
-      min-height: 42px;
-      padding: 0 14px;
-      border: 1px solid rgba(255,255,255,.3);
-      border-radius: 999px;
-      background: rgba(8,11,17,.86);
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid rgba(255,255,255,.26);
+      border-radius: 10px;
+      background: #171d29;
       color: #fff;
       text-decoration: none;
       font-weight: 800;
       font-size: 14px;
-      box-shadow: 0 6px 24px rgba(0,0,0,.3);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      white-space: nowrap;
     }
-    .home:hover, .home:focus-visible { background: rgba(25,31,45,.97); outline: 2px solid rgba(255,255,255,.55); outline-offset: 2px; }
+    .home:hover, .home:focus-visible { background: #232c3d; outline: 2px solid rgba(255,255,255,.45); outline-offset: 2px; }
+    .brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; opacity: .8; font-size: 14px; }
+    .player-main { min-height: 0; }
     #game { width: 100%; height: 100%; border: 0; display: block; background: #090c12; }
-    .error { min-height: 100%; display: grid; place-items: center; padding: 24px; text-align: center; color: #fff; }
+    .error { height: 100%; display: grid; place-items: center; padding: 24px; text-align: center; color: #fff; }
   </style>
 </head>
 <body>
-  <a class="home" href="./" aria-label="ゲーム一覧へ戻る">← ゲーム一覧</a>
-  <iframe id="game" title="Daily Game" allow="autoplay; fullscreen" referrerpolicy="same-origin"></iframe>
+  <header class="player-header">
+    <a class="home" href="./" aria-label="ゲーム一覧へ戻る">← ゲーム一覧</a>
+    <div class="brand">Daily Game Lab</div>
+  </header>
+  <main class="player-main">
+    <iframe id="game" title="Daily Game" allow="autoplay; fullscreen" referrerpolicy="same-origin"></iframe>
+  </main>
   <script>
     const params = new URLSearchParams(location.search);
     const game = params.get('game') || '';
@@ -48,7 +60,7 @@
       const error = document.createElement('div');
       error.className = 'error';
       error.textContent = 'ゲームを開けませんでした。ゲーム一覧へ戻って選び直してください。';
-      document.body.appendChild(error);
+      document.querySelector('.player-main').appendChild(error);
     }
   </script>
 </body>
