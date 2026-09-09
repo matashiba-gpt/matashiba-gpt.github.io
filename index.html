@@ -47,7 +47,7 @@
           return;
         }
         root.innerHTML = games.map(game => `
-          <a class="game" href="./play.html?game=${encodeURIComponent(game.path)}">
+          <a class="game" href="./player-v2.html?game=${encodeURIComponent(game.path)}">
             <strong>${game.title}</strong>
             <div class="meta">${game.date}${game.summary ? ' · ' + game.summary : ''}</div>
           </a>
