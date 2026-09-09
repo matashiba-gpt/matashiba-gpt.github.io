@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Heat Sink</title>
+<style>
+:root{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:#0a0d14;color:#f2f5fb}main{width:min(94vw,760px);margin:0 auto;padding:18px 0 28px}h1{margin:0 0 4px;font-size:clamp(30px,7vw,46px)}.lead{margin:0 0 14px;color:#b7c0d4;line-height:1.5}.panel{border:1px solid #2b3448;border-radius:18px;background:#111724;overflow:hidden;box-shadow:0 18px 55px #0008}.hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px;border-bottom:1px solid #2b3448}.stat{background:#0b101a;border:1px solid #35415a;border-radius:12px;padding:8px 10px;text-align:center}.stat b{display:block;font-size:21px}.board{position:relative;min-height:430px;padding:20px;display:grid;grid-template-columns:repeat(3,minmax(78px,1fr));grid-template-areas:"a b c" "d e f" ". g .";gap:12px;align-items:stretch}.cell{position:relative;min-height:118px;border:2px solid #3a4966;border-radius:18px;background:#171e2d;color:#fff;display:flex;flex-direction:column;justify-content:space-between;padding:10px;touch-action:none;user-select:none;transition:transform .08s,border-color .12s,background .12s,box-shadow .12s}.cell.dragging{transform:scale(1.03);border-color:#d7e5ff}.cell.target{border-color:#67d7ff;box-shadow:0 0 0 2px #67d7ff35 inset}.cell.vent-flash{background:#312a20;box-shadow:0 0 0 3px #ffd37d55 inset}.cell.hot{border-color:#ffb35c}.cell.critical{border-color:#ff596e;box-shadow:0 0 0 2px #ff596e33 inset}.cell.over{background:#54202b}.cell .name{display:flex;align-items:center;justify-content:space-between;gap:6px;font-weight:800;font-size:13px;color:#c6d0e5}.trend{font-size:12px;color:#ffd37d;letter-spacing:-1px;white-space:nowrap}.temp{font-size:clamp(24px,6vw,34px);font-weight:950;letter-spacing:-1px}.meter{height:9px;border-radius:99px;background:#080b11;overflow:hidden;border:1px solid #303b50}.fill{height:100%;width:30%;background:linear-gradient(90deg,#5cc8ff 0%,#ffd55c 60%,#ff536c 100%);transition:width .15s}.vent{margin-top:8px;min-height:34px;border:1px solid #56657f;border-radius:9px;background:#202a3d;color:#fff;font-weight:800;font-size:12px;touch-action:manipulation}.vent:disabled{opacity:.42}.hint{padding:10px 14px;border-top:1px solid #2b3448;background:#0d1320;color:#9ca8bf;line-height:1.45;font-size:13px}.message{min-height:54px;margin-top:10px;padding:11px 13px;border:1px solid #2b3448;border-radius:12px;background:#101624;color:#cbd5e7}.actions{display:flex;justify-content:flex-end;margin-top:10px}#restart{min-height:46px;padding:0 18px;border-radius:12px;border:1px solid #465773;background:#1a2334;color:#fff;font-weight:850}.good{color:#82f0b4}.bad{color:#ff8c9c}.warn{color:#ffd37d}@media(max-width:520px){.hud{grid-template-columns:1fr 1fr}.hud .stat:last-child{grid-column:1/-1}.board{min-height:470px;padding:12px;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr))}.cell{min-height:128px;padding:8px}.vent{font-size:11px;padding:0 4px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Heat Sink</h1>
+<p class="lead">90秒、炉心を守れ。熱いセルから隣へ熱を逃がし、危険なセルはVENT。VENTの排熱は周囲へ跳ね返ります。</p>
+<section class="panel" aria-label="Heat Sink game">
+<div class="hud"><div class="stat">TIME<b id="time">90.0</b></div><div class="stat">HOTTEST<b id="hottest">0°</b></div><div class="stat">OVERLOAD<b id="overloads">0 / 3</b></div></div>
+<div class="board" id="board"></div>
+<div class="hint">操作: セルを押すと移動可能な隣接セルが青く光ります。ドラッグで約14°移動。名前横の↑は熱の上がりやすさ。VENTは29°冷却し、周囲を6°加熱します。</div>
+</section>
+<div class="message" id="message">↑が多いセルほど先に危険になります。熱の逃がし先を残してください。</div>
+<div class="actions"><button id="restart">やり直す</button></div>
+</main>
+<script>
+(()=>{
+const board=document.getElementById('board'),timeEl=document.getElementById('time'),hottestEl=document.getElementById('hottest'),overloadsEl=document.getElementById('overloads'),messageEl=document.getElementById('message'),restartBtn=document.getElementById('restart');
+const layout=[
+ {id:0,area:'a',neighbors:[1,3]},{id:1,area:'b',neighbors:[0,2,4]},{id:2,area:'c',neighbors:[1,5]},
+ {id:3,area:'d',neighbors:[0,4,6]},{id:4,area:'e',neighbors:[1,3,5,6]},{id:5,area:'f',neighbors:[2,4,6]},{id:6,area:'g',neighbors:[3,4,5]}
+];
+let cells=[],temps=[],rates=[],ventReady=[],remaining=90,ended=false,raf,lastTs=0,dragSource=null,flashTimer=null;
+function makeCells(){board.innerHTML='';cells=layout.map(info=>{const el=document.createElement('div');el.className='cell';el.style.gridArea=info.area;el.dataset.id=info.id;el.innerHTML=`<div class="name"><span>CORE ${info.id+1}</span><span class="trend" aria-label="heat rise rate"></span></div><div class="temp">0°</div><div class="meter"><div class="fill"></div></div><button class="vent" type="button">VENT</button>`;board.appendChild(el);const vent=el.querySelector('.vent');vent.addEventListener('pointerdown',e=>e.stopPropagation());vent.addEventListener('click',e=>{e.stopPropagation();ventCell(info.id)});el.addEventListener('pointerdown',e=>beginDrag(e,info.id));el.addEventListener('pointerup',e=>endDrag(e));el.addEventListener('pointercancel',cancelDrag);return el})}
+function clearDragTargets(){cells.forEach(el=>el.classList.remove('target'))}
+function beginDrag(e,id){if(ended)return;dragSource=id;clearDragTargets();cells[id].classList.add('dragging');layout[id].neighbors.forEach(n=>cells[n].classList.add('target'));try{cells[id].setPointerCapture(e.pointerId)}catch{}}
+function cancelDrag(){if(dragSource!==null)cells[dragSource].classList.remove('dragging');clearDragTargets();dragSource=null}
+function endDrag(e){if(ended||dragSource===null)return;const source=dragSource;const drop=document.elementFromPoint(e.clientX,e.clientY)?.closest('.cell');cells[source].classList.remove('dragging');clearDragTargets();dragSource=null;if(!drop)return;const targetId=Number(drop.dataset.id);if(source===targetId)return;transfer(source,targetId)}
+board.addEventListener('pointerup',e=>{if(dragSource===null||ended)return;const target=e.target.closest('.cell');if(!target){cancelDrag();return}const source=dragSource;const targetId=Number(target.dataset.id);cells[source].classList.remove('dragging');clearDragTargets();dragSource=null;if(source!==targetId)transfer(source,targetId)});
+function adjacent(a,b){return layout[a].neighbors.includes(b)}
+function transfer(from,to){if(!adjacent(from,to)){say('<span class="warn">隣接セルにだけ熱を移せます。</span>');return}const amount=Math.min(14,Math.max(0,temps[from]-8));if(amount<1){say('<span class="warn">移せる熱がほとんどありません。</span>');return}temps[from]-=amount;temps[to]+=amount;say(`CORE ${from+1} → ${to+1} に <span class="warn">${amount.toFixed(0)}°</span> 移動。`);render()}
+function ventCell(id){if(ended||ventReady[id]>0)return;temps[id]=Math.max(5,temps[id]-29);layout[id].neighbors.forEach(n=>{temps[n]+=6;cells[n].classList.add('vent-flash');setTimeout(()=>cells[n].classList.remove('vent-flash'),260)});ventReady[id]=8;say(`CORE ${id+1} をVENT。29°排熱、光った隣接セルへ6°ずつ跳ね返りました。`);render()}
+function say(html){messageEl.innerHTML=html;clearTimeout(flashTimer);flashTimer=setTimeout(()=>{if(!ended)messageEl.textContent='↑が多いセルほど先に危険になります。熱の逃がし先を残してください。'},1800)}
+function riseMark(rate){return rate>=2?'↑↑↑':rate>=1.2?'↑↑':'↑'}
+function render(){let hottest=0,over=0;cells.forEach((el,i)=>{const t=temps[i];hottest=Math.max(hottest,t);if(t>=100)over++;el.querySelector('.temp').textContent=`${t.toFixed(0)}°`;el.querySelector('.fill').style.width=`${Math.min(100,t)}%`;el.querySelector('.trend').textContent=riseMark(rates[i]||0);el.classList.toggle('hot',t>=75&&t<90);el.classList.toggle('critical',t>=90&&t<100);el.classList.toggle('over',t>=100);const btn=el.querySelector('.vent');btn.disabled=ended||ventReady[i]>0;btn.textContent=ventReady[i]>0?`VENT ${ventReady[i].toFixed(1)}s`:'VENT'});timeEl.textContent=remaining.toFixed(1);hottestEl.textContent=`${hottest.toFixed(0)}°`;overloadsEl.textContent=`${over} / 3`;return over}
+function finish(win){ended=true;cancelAnimationFrame(raf);window.__DAILY_GAME__.state=win?'won':'lost';render();messageEl.innerHTML=win?'<span class="good">STABLE! 90秒耐え切りました。</span>':'<span class="bad">MELTDOWN。3セルが同時に100°を超えました。</span>'}
+function tick(ts){if(ended)return;if(!lastTs)lastTs=ts;const dt=Math.min(.05,(ts-lastTs)/1000);lastTs=ts;remaining=Math.max(0,remaining-dt);for(let i=0;i<temps.length;i++){const pressure=1+(90-remaining)/90*.45;temps[i]+=rates[i]*pressure*dt;ventReady[i]=Math.max(0,ventReady[i]-dt)}const over=render();if(over>=3){finish(false);return}if(remaining<=0){finish(true);return}raf=requestAnimationFrame(tick)}
+function reset(){cancelAnimationFrame(raf);clearTimeout(flashTimer);ended=false;remaining=90;lastTs=0;dragSource=null;temps=[36,42,31,47,39,34,44];rates=[2.1,.45,2.3,.55,1.6,.4,2.0];ventReady=Array(7).fill(0);window.__DAILY_GAME__.state='playing';clearDragTargets();cells.forEach(el=>el.classList.remove('dragging','vent-flash'));messageEl.textContent='↑が多いセルほど先に危険になります。熱の逃がし先を残してください。';render();raf=requestAnimationFrame(tick)}
+restartBtn.addEventListener('click',reset);
+makeCells();window.__DAILY_GAME__={ready:true,state:'playing',restart:reset};reset();
+})();
+</script>
+</body>
+</html>
