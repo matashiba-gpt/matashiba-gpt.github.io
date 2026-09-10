@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Orbit Hitch</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif}body{margin:0;background:#090d18;color:#eef3ff}.wrap{max-width:760px;margin:auto;padding:18px}.intro{margin-bottom:12px}.intro h1{margin:.2rem 0}.intro p{line-height:1.45;color:#bfc9df}.hud{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 12px;font-weight:700}.game{display:block;width:100%;aspect-ratio:1/1;background:radial-gradient(circle,#10192c,#080b13);border:1px solid #33415f;border-radius:16px;touch-action:none}.controls{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}.controls button,.restart{font:inherit;font-weight:700;padding:12px 18px;border:0;border-radius:999px;background:#dbe7ff;color:#0a1020}.controls button:disabled{opacity:.42;cursor:not-allowed}.release{background:#8ee8c0!important}.status{min-height:1.5em;margin:10px 0;text-align:center;font-weight:700}</style>
+<style id="daily-game-direct-header-style">
+#daily-game-direct-header[hidden]{display:none!important}
+#daily-game-direct-header{min-height:56px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.16);background:#0b0f17;color:#fff;font:700 14px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#daily-game-direct-header a{display:inline-flex;align-items:center;min-height:38px;padding:0 12px;border:1px solid rgba(255,255,255,.28);border-radius:10px;color:#fff;text-decoration:none;background:#151b27}
+#daily-game-direct-header strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<header id="daily-game-direct-header" hidden><a href="../../">← ゲーム一覧</a><strong>Daily Game Lab</strong></header>
+<script>if(window.top===window.self){document.getElementById('daily-game-direct-header').hidden=false}</script><main class="wrap">
+<section class="intro"><h1>Orbit Hitch</h1><p>Ride a rotating ring, then <b>tap the arena or Release</b> to borrow its momentum and coast outward. Aim for one of the bright hitch points on the next ring. Use tiny left/right thruster taps to bend your coast; fuel is limited. From the outer ring, release into the gold beacon to win.</p></section>
+<div class="hud"><span id="ringLabel">Ring 1 / 4</span><span id="fuelLabel">Fuel 6</span><span id="modeLabel">Attached</span></div>
+<canvas id="game" class="game" width="720" height="720" aria-label="Orbit Hitch game area"></canvas>
+<div class="controls"><button id="left">◀ Thruster</button><button id="release" class="release">Release</button><button id="right">Thruster ▶</button></div>
+<div id="status" class="status">Watch the bright points on Ring 2, then release.</div>
+<div style="text-align:center"><button id="restart" class="restart" hidden>Restart</button></div>
+</main>
+<script>
+(()=>{
+const c=document.getElementById('game'),ctx=c.getContext('2d');
+const cx=c.width/2,cy=c.height/2,radii=[85,155,230,305],speeds=[.012,-.008,.006,-.0045],gatePhase=[-Math.PI/2,.35,1.1,-.55];
+const beacon={x:cx+350,y:cy,r:17},captureRadius=25;
+let ring=0,angle=-Math.PI/2,attached=true,fuel=6,state='playing',px=0,py=0,vx=0,vy=0,missFrames=0,last=performance.now(),simFrames=0;
+const ringLabel=document.getElementById('ringLabel'),fuelLabel=document.getElementById('fuelLabel'),modeLabel=document.getElementById('modeLabel'),statusEl=document.getElementById('status'),restartBtn=document.getElementById('restart'),leftBtn=document.getElementById('left'),releaseBtn=document.getElementById('release'),rightBtn=document.getElementById('right');
+function sync(){ringLabel.textContent=`Ring ${Math.min(ring+1,4)} / 4`;fuelLabel.textContent=`Fuel ${fuel}`;modeLabel.textContent=attached?'Attached':'Coasting';const active=state==='playing';releaseBtn.disabled=!active||!attached;releaseBtn.textContent=attached?'Release':'Coasting…';leftBtn.disabled=rightBtn.disabled=!active||attached||fuel<=0;window.__DAILY_GAME__.state=state;}
+function gateAngle(i,k){return gatePhase[i]+simFrames*speeds[i]+k*Math.PI*2/3;}
+function gatePos(i,k){const a=gateAngle(i,k);return [cx+Math.cos(a)*radii[i],cy+Math.sin(a)*radii[i],a];}
+function reset(){ring=0;simFrames=0;angle=gatePhase[0];attached=true;fuel=6;state='playing';vx=vy=0;missFrames=0;last=performance.now();restartBtn.hidden=true;statusEl.textContent='Watch the bright points on Ring 2, then release.';sync();}
+function probePos(){if(attached)return [cx+Math.cos(angle)*radii[ring],cy+Math.sin(angle)*radii[ring]];return [px,py];}
+function snapshot(){const [x,y]=probePos();return {state,ring,attached,fuel,simFrames,angle,probe:{x,y},velocity:{x:vx,y:vy},missFrames,nextHitchPoints:ring<3?[0,1,2].map(k=>{const [gx,gy,ga]=gatePos(ring+1,k);return {x:gx,y:gy,angle:ga};}):[],beacon:{...beacon},captureRadius};}
+function release(){if(state!=='playing'||!attached)return;const r=radii[ring],tangent=r*speeds[ring]*1.12,outward=1.7;[px,py]=probePos();vx=-Math.sin(angle)*tangent+Math.cos(angle)*outward;vy=Math.cos(angle)*tangent+Math.sin(angle)*outward;attached=false;missFrames=0;statusEl.textContent=ring===3?'Coasting — dock with the gold beacon.':'Coasting — catch a bright hitch point.';sync();}
+function thrust(dir){if(state!=='playing'||attached||fuel<=0)return;const mag=Math.hypot(vx,vy)||1,m=.24,ox=vx,oy=vy;vx+=(-oy/mag)*dir*m;vy+=(ox/mag)*dir*m;fuel--;statusEl.textContent=ring===3?`Correction used — steer toward the beacon. Fuel ${fuel}.`:`Correction used — catch a bright hitch point. Fuel ${fuel}.`;sync();}
+function end(win,msg){state=win?'won':'lost';statusEl.textContent=msg;restartBtn.hidden=false;sync();}
+function tryAttachNext(){if(ring>=radii.length-1)return false;for(let k=0;k<3;k++){const [gx,gy,ga]=gatePos(ring+1,k);if(Math.hypot(px-gx,py-gy)<=captureRadius){ring++;angle=ga;attached=true;vx=vy=0;statusEl.textContent=ring===3?'Outer ring reached — time your release into the beacon!':'Hitched! Watch the next bright points.';sync();return true;}}return false;}
+function step(dt){if(state!=='playing')return;simFrames+=dt;if(attached){angle+=speeds[ring]*dt;return;}px+=vx*dt;py+=vy*dt;missFrames+=dt;if(tryAttachNext())return;if(ring===3&&Math.hypot(px-beacon.x,py-beacon.y)<=beacon.r+14){end(true,'Docked with the outer beacon!');return;}const d=Math.hypot(px-cx,py-cy);if(d>445||missFrames>480){end(false,fuel?'Lost to deep space. Try a different release timing.':'Out of fuel and missed the hitch points.');}}
+function draw(){ctx.clearRect(0,0,c.width,c.height);ctx.save();ctx.translate(cx,cy);for(let i=0;i<radii.length;i++){ctx.beginPath();ctx.arc(0,0,radii[i],0,Math.PI*2);ctx.strokeStyle=i===ring?'#8ee8c0':'#42506f';ctx.lineWidth=i===ring?5:2;ctx.stroke();for(let k=0;k<3;k++){const a=gateAngle(i,k),isTarget=ring<3&&i===ring+1;ctx.beginPath();ctx.arc(Math.cos(a)*radii[i],Math.sin(a)*radii[i],isTarget?8:5,0,Math.PI*2);ctx.fillStyle=isTarget?'#9ff7d0':'#7b8daf';ctx.fill();if(isTarget){ctx.beginPath();ctx.arc(Math.cos(a)*radii[i],Math.sin(a)*radii[i],captureRadius,0,Math.PI*2);ctx.strokeStyle='rgba(159,247,208,.16)';ctx.lineWidth=2;ctx.stroke();}}}ctx.restore();ctx.beginPath();ctx.arc(beacon.x,beacon.y,beacon.r+8,0,Math.PI*2);ctx.strokeStyle='rgba(255,209,102,.25)';ctx.lineWidth=5;ctx.stroke();ctx.beginPath();ctx.arc(beacon.x,beacon.y,beacon.r,0,Math.PI*2);ctx.fillStyle='#ffd166';ctx.fill();const [x,y]=probePos();ctx.beginPath();ctx.arc(x,y,10,0,Math.PI*2);ctx.fillStyle=attached?'#dfffee':'#ff8fa3';ctx.fill();ctx.setLineDash([8,8]);if(attached){const r=radii[ring],tangent=r*speeds[ring]*1.12,outward=1.7,pvx=-Math.sin(angle)*tangent+Math.cos(angle)*outward,pvy=Math.cos(angle)*tangent+Math.sin(angle)*outward;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+pvx*42,y+pvy*42);ctx.strokeStyle='rgba(142,232,192,.55)';ctx.lineWidth=2;ctx.stroke();}else{ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+vx*34,y+vy*34);ctx.strokeStyle='rgba(255,255,255,.38)';ctx.lineWidth=2;ctx.stroke();}ctx.setLineDash([]);}
+function loop(t){const dt=Math.min(2.2,(t-last)/16.67);last=t;step(dt);draw();requestAnimationFrame(loop);}c.addEventListener('pointerdown',release);releaseBtn.onclick=release;leftBtn.onclick=()=>thrust(-1);rightBtn.onclick=()=>thrust(1);restartBtn.onclick=reset;window.addEventListener('keydown',e=>{if(e.code==='Space'){e.preventDefault();release();}else if(e.code==='ArrowLeft')thrust(-1);else if(e.code==='ArrowRight')thrust(1);else if(e.key.toLowerCase()==='r'&&state!=='playing')reset();});window.__DAILY_GAME__={ready:true,state:'playing',restart:reset,snapshot};sync();requestAnimationFrame(loop);
+})();
+</script></body></html>
