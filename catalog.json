@@ -19,6 +19,12 @@
       "title": "Heat Sink",
       "date": "2026-09-09",
       "path": "games/2026-09-09-heat-sink/"
+    },
+    {
+      "id": "2026-09-10-orbit-hitch",
+      "title": "Orbit Hitch",
+      "date": "2026-09-10",
+      "path": "games/2026-09-10-orbit-hitch/"
     }
   ]
 }
