@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Traceback</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:#071019;color:#eef8ff}.wrap{max-width:820px;margin:auto;padding:16px}.intro h1{margin:.1rem 0 .35rem}.intro p{margin:.25rem 0 .9rem;line-height:1.5;color:#c7d7e2}.hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:9px}.hud span{padding:8px 6px;text-align:center;border:1px solid #29495b;background:#10212d;border-radius:10px;font-weight:800}.game{display:block;width:100%;aspect-ratio:4/3;background:#07141d;border:1px solid #315468;border-radius:15px;touch-action:none}.legend{display:flex;justify-content:center;gap:13px;flex-wrap:wrap;margin:8px 0;font-size:.86rem;color:#b9cbd6}.swatch{display:inline-block;width:1.15em;height:.36em;border-radius:999px;margin-right:.35em;vertical-align:.15em}.status{min-height:2.9em;background:#0e1d28;border-radius:10px;padding:9px 12px;text-align:center;font-weight:750;line-height:1.4}.controls{display:grid;grid-template-columns:70px 70px 70px;grid-template-rows:54px 54px;gap:7px;justify-content:center;margin-top:10px;user-select:none}.dir,.restart{font:inherit;font-weight:900;border:0;border-radius:12px;background:#d8f4ff;color:#08202b;touch-action:none}.dir[data-d="up"]{grid-column:2}.dir[data-d="left"]{grid-column:1;grid-row:2}.dir[data-d="down"]{grid-column:2;grid-row:2}.dir[data-d="right"]{grid-column:3;grid-row:2}.restart{display:block;margin:10px auto 0;padding:10px 20px;border-radius:999px}.tip{text-align:center;color:#8fa7b6;font-size:.86rem;margin:.55rem 0 0}@media(max-width:520px){.wrap{padding:11px}.intro p{font-size:.92rem}.hud{font-size:.84rem}.hud span{padding:7px 3px}.legend{font-size:.79rem;gap:9px}.status{font-size:.9rem}.controls{grid-template-columns:64px 64px 64px;grid-template-rows:50px 50px}}
+</style>
+<style id="daily-game-direct-header-style">
+#daily-game-direct-header[hidden]{display:none!important}
+#daily-game-direct-header{min-height:56px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.16);background:#0b0f17;color:#fff;font:700 14px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#daily-game-direct-header a{display:inline-flex;align-items:center;min-height:38px;padding:0 12px;border:1px solid rgba(255,255,255,.28);border-radius:10px;color:#fff;text-decoration:none;background:#151b27}
+#daily-game-direct-header strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<header id="daily-game-direct-header" hidden><a href="../../">← ゲーム一覧</a><strong>Daily Game Lab</strong></header>
+<script>if(window.top===window.self){document.getElementById('daily-game-direct-header').hidden=false}</script><main class="wrap">
+<section class="intro"><h1>Traceback</h1><p>光る番号を<b>1→10の順</b>に回収しよう。移動した跡は少し後に壁になります。<b>水色はまだ安全、黄色は硬化直前、紫は衝突する壁</b>。近道ほど、あとで自分の逃げ道を塞ぎます。</p></section>
+<div class="hud"><span id="nodeLabel">次のノード 1 / 10</span><span id="hitLabel">衝突 0 / 3</span><span id="timeLabel">残り 60秒</span></div>
+<canvas id="game" class="game" width="720" height="540" aria-label="番号順にノードを集め、自分の移動跡が固まる壁を避けるゲーム"></canvas>
+<div class="legend"><span><i class="swatch" style="background:#5fe7ff"></i>安全な軌跡</span><span><i class="swatch" style="background:#ffd166"></i>硬化直前</span><span><i class="swatch" style="background:#d58cff"></i>固い壁</span></div>
+<div id="status" class="status">まず「1」へ。通った場所は約2秒後に壁になる。</div>
+<div class="controls" aria-label="方向操作"><button class="dir" data-d="up" aria-label="上へ進む">▲</button><button class="dir" data-d="left" aria-label="左へ進む">◀</button><button class="dir" data-d="down" aria-label="下へ進む">▼</button><button class="dir" data-d="right" aria-label="右へ進む">▶</button></div>
+<button id="restart" class="restart" hidden>もう一度</button><p class="tip">キーボード: 矢印 / WASD　スマホ: 方向ボタンまたはゲーム画面をスワイプ</p>
+</main>
+<script>
+(()=>{
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const nodeLabel=document.getElementById('nodeLabel'),hitLabel=document.getElementById('hitLabel'),timeLabel=document.getElementById('timeLabel'),statusEl=document.getElementById('status'),restartBtn=document.getElementById('restart');
+const W=canvas.width,H=canvas.height,PLAYER_R=11,SPEED=2.55,ROUND=60,MAX_HITS=3;
+const HARDEN_AT=120,WARN_AT=82,EXPIRE_AT=390,TRAIL_GAP=7,COLLIDE_GAP=15;
+const nodes=[
+{x:124,y:112},{x:360,y:82},{x:603,y:128},{x:592,y:328},{x:438,y:454},
+{x:202,y:432},{x:104,y:294},{x:282,y:246},{x:484,y:246},{x:360,y:356}
+];
+let player,dir,trail,nextNode,hits,timeLeft,state,last,lastTrail,invuln,flash,swipeStart;
+function reset(){player={x:70,y:470};dir={x:1,y:0};trail=[];nextNode=0;hits=0;timeLeft=ROUND;state='playing';last=performance.now();lastTrail=0;invuln=0;flash=0;swipeStart=null;restartBtn.hidden=true;statusEl.textContent='まず「1」へ。通った場所は約2秒後に壁になる。';sync()}
+function setDir(x,y){if(state!=='playing')return;if(x||y){dir={x,y};statusEl.textContent=nextNode<10?`「${nextNode+1}」へ進もう。黄色になった軌跡から離れて！`:'全ノード回収！'}}
+function sync(){nodeLabel.textContent=nextNode<10?`次のノード ${nextNode+1} / 10`:'ノード 10 / 10';hitLabel.textContent=`衝突 ${hits} / ${MAX_HITS}`;timeLabel.textContent=`残り ${Math.ceil(Math.max(0,timeLeft))}秒`;window.__DAILY_GAME__.state=state}
+function end(win,msg){state=win?'won':'lost';statusEl.textContent=msg;restartBtn.hidden=false;sync()}
+function distPointSeg(px,py,a,b){const vx=b.x-a.x,vy=b.y-a.y,wx=px-a.x,wy=py-a.y,c1=wx*vx+wy*vy;if(c1<=0)return Math.hypot(px-a.x,py-a.y);const c2=vx*vx+vy*vy;if(c2<=c1)return Math.hypot(px-b.x,py-b.y);const t=c1/c2;return Math.hypot(px-(a.x+t*vx),py-(a.y+t*vy))}
+function wallCollision(){if(invuln>0)return false;for(let i=1;i<trail.length;i++){const a=trail[i-1],b=trail[i];if(b.break||a.break)continue;if(a.age<HARDEN_AT||b.age<HARDEN_AT)continue;if(a.age>EXPIRE_AT||b.age>EXPIRE_AT)continue;if(distPointSeg(player.x,player.y,a,b)<COLLIDE_GAP)return true}return false}
+function hitWall(){hits++;invuln=58;flash=20;const target=nextNode?nodes[nextNode-1]:{x:70,y:470};player.x=Math.max(25,Math.min(W-25,target.x));player.y=Math.max(25,Math.min(H-25,target.y));trail.push({x:player.x,y:player.y,age:0,break:true});statusEl.textContent=hits>=MAX_HITS?'':`壁に衝突！ あと${MAX_HITS-hits}回。広い逃げ道を残そう。`;if(hits>=MAX_HITS)end(false,'3回衝突。短い近道だけでなく、後の逃げ道も残そう。')}
+function collect(){if(nextNode>=nodes.length)return;const n=nodes[nextNode];if(Math.hypot(player.x-n.x,player.y-n.y)<25){nextNode++;flash=10;if(nextNode>=nodes.length){end(true,`クリア！ 10個すべて回収。残り ${Math.ceil(timeLeft)}秒。`);return}statusEl.textContent=`${nextNode}個回収！ 次は「${nextNode+1}」。今の道が壁になる前に離れよう。`;sync()}}
+function step(dt){if(state!=='playing')return;timeLeft-=dt/60;if(timeLeft<=0){timeLeft=0;end(false,`時間切れ。${nextNode} / 10個回収。ルートを少し短くしてみよう。`);return}if(invuln>0)invuln-=dt;if(flash>0)flash-=dt;for(const p of trail)p.age+=dt;trail=trail.filter(p=>p.age<=EXPIRE_AT+8);const old={x:player.x,y:player.y};player.x+=dir.x*SPEED*dt;player.y+=dir.y*SPEED*dt;if(player.x<PLAYER_R||player.x>W-PLAYER_R){player.x=Math.max(PLAYER_R,Math.min(W-PLAYER_R,player.x));dir.x*=-1}if(player.y<PLAYER_R||player.y>H-PLAYER_R){player.y=Math.max(PLAYER_R,Math.min(H-PLAYER_R,player.y));dir.y*=-1}lastTrail+=Math.hypot(player.x-old.x,player.y-old.y);if(lastTrail>=TRAIL_GAP){trail.push({x:player.x,y:player.y,age:0});lastTrail=0}collect();if(state==='playing'&&wallCollision())hitWall();sync()}
+function trailStyle(age){if(age<WARN_AT)return{c:'#5fe7ff',w:4,a:.55};if(age<HARDEN_AT)return{c:'#ffd166',w:7,a:.95};const fade=1-(age-HARDEN_AT)/(EXPIRE_AT-HARDEN_AT);return{c:'#d58cff',w:10,a:Math.max(.18,fade)}}
+function drawTrail(){for(let i=1;i<trail.length;i++){const a=trail[i-1],b=trail[i];if(b.break||a.break)continue;const s=trailStyle(Math.min(a.age,b.age));ctx.globalAlpha=s.a;ctx.strokeStyle=s.c;ctx.lineWidth=s.w;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke()}ctx.globalAlpha=1}
+function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#07141d';ctx.fillRect(0,0,W,H);ctx.strokeStyle='#17303e';ctx.lineWidth=1;for(let x=60;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke()}for(let y=60;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke()}drawTrail();
+for(let i=0;i<nodes.length;i++){const n=nodes[i],done=i<nextNode,active=i===nextNode;ctx.beginPath();ctx.arc(n.x,n.y,active?19:15,0,Math.PI*2);ctx.fillStyle=done?'#18333a':active?'#9ef6c8':'#203341';ctx.fill();ctx.strokeStyle=active?'#eafff2':'#45606e';ctx.lineWidth=active?4:2;ctx.stroke();ctx.fillStyle=done?'#76949d':active?'#08251a':'#a8bbc5';ctx.font=`800 ${active?17:14}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(i+1),n.x,n.y+1);if(active){ctx.beginPath();ctx.arc(n.x,n.y,26+Math.sin(performance.now()/180)*3,0,Math.PI*2);ctx.strokeStyle='rgba(158,246,200,.35)';ctx.lineWidth=3;ctx.stroke()}}
+ctx.save();ctx.translate(player.x,player.y);ctx.rotate(Math.atan2(dir.y,dir.x));ctx.globalAlpha=invuln>0&&Math.floor(invuln/5)%2?0.25:1;ctx.beginPath();ctx.moveTo(15,0);ctx.lineTo(-10,-9);ctx.lineTo(-6,0);ctx.lineTo(-10,9);ctx.closePath();ctx.fillStyle=flash>0?'#fff2a8':'#f3fbff';ctx.fill();ctx.strokeStyle='#5fe7ff';ctx.lineWidth=3;ctx.stroke();ctx.restore();ctx.globalAlpha=1}
+function loop(t){const dt=Math.min(2.2,(t-last)/16.667);last=t;step(dt);draw();requestAnimationFrame(loop)}
+const keys={ArrowUp:[0,-1],w:[0,-1],W:[0,-1],ArrowDown:[0,1],s:[0,1],S:[0,1],ArrowLeft:[-1,0],a:[-1,0],A:[-1,0],ArrowRight:[1,0],d:[1,0],D:[1,0]};addEventListener('keydown',e=>{if(keys[e.key]){e.preventDefault();setDir(...keys[e.key])}});
+document.querySelectorAll('.dir').forEach(btn=>{const dirs={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};const go=e=>{e.preventDefault();setDir(...dirs[btn.dataset.d])};btn.addEventListener('pointerdown',go)});
+canvas.addEventListener('pointerdown',e=>{swipeStart={x:e.clientX,y:e.clientY}});canvas.addEventListener('pointerup',e=>{if(!swipeStart)return;const dx=e.clientX-swipeStart.x,dy=e.clientY-swipeStart.y;swipeStart=null;if(Math.hypot(dx,dy)<18)return;if(Math.abs(dx)>Math.abs(dy))setDir(Math.sign(dx),0);else setDir(0,Math.sign(dy))});restartBtn.onclick=reset;
+function snapshot(){return{state,nextNode,hits,timeLeft,player:{...player},direction:{...dir},trail:{safe:trail.filter(p=>p.age<WARN_AT).length,warning:trail.filter(p=>p.age>=WARN_AT&&p.age<HARDEN_AT).length,solid:trail.filter(p=>p.age>=HARDEN_AT&&p.age<=EXPIRE_AT).length},nextTarget:nextNode<nodes.length?{...nodes[nextNode],number:nextNode+1}:null}}
+window.__DAILY_GAME__={ready:true,state:'playing',restart:reset,snapshot};reset();requestAnimationFrame(loop);
+})();
+</script></body></html>
