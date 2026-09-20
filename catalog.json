@@ -43,6 +43,12 @@
       "title": "Signal Debt",
       "date": "2026-09-19",
       "path": "games/2026-09-19-signal-debt/"
+    },
+    {
+      "id": "2026-09-20-shadow-market",
+      "title": "Shadow Market",
+      "date": "2026-09-20",
+      "path": "games/2026-09-20-shadow-market/"
     }
   ]
 }
