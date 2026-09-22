@@ -1,54 +1,14 @@
 {
   "schema_version": 1,
   "games": [
-    {
-      "id": "2026-09-07-echo-switch",
-      "title": "4秒後の自分",
-      "date": "2026-09-07",
-      "path": "games/2026-09-07-echo-switch/",
-      "summary": "4秒前の自分と協力して2つのスイッチを同時に踏む1画面パズル。"
-    },
-    {
-      "id": "2026-09-08-rule-shift",
-      "title": "Rule Shift",
-      "date": "2026-09-08",
-      "path": "games/2026-09-08-rule-shift/"
-    },
-    {
-      "id": "2026-09-09-heat-sink",
-      "title": "Heat Sink",
-      "date": "2026-09-09",
-      "path": "games/2026-09-09-heat-sink/"
-    },
-    {
-      "id": "2026-09-10-orbit-hitch",
-      "title": "Orbit Hitch",
-      "date": "2026-09-10",
-      "path": "games/2026-09-10-orbit-hitch/"
-    },
-    {
-      "id": "2026-09-12-traceback",
-      "title": "Traceback",
-      "date": "2026-09-12",
-      "path": "games/2026-09-12-traceback/"
-    },
-    {
-      "id": "2026-09-18-tide-lock",
-      "title": "Tide Lock",
-      "date": "2026-09-18",
-      "path": "games/2026-09-18-tide-lock/"
-    },
-    {
-      "id": "2026-09-19-signal-debt",
-      "title": "Signal Debt",
-      "date": "2026-09-19",
-      "path": "games/2026-09-19-signal-debt/"
-    },
-    {
-      "id": "2026-09-20-shadow-market",
-      "title": "Shadow Market",
-      "date": "2026-09-20",
-      "path": "games/2026-09-20-shadow-market/"
-    }
+    {"id":"2026-09-07-echo-switch","title":"4秒後の自分","date":"2026-09-07","path":"games/2026-09-07-echo-switch/","summary":"4秒前の自分と協力して2つのスイッチを同時に踏む1画面パズル。"},
+    {"id":"2026-09-08-rule-shift","title":"Rule Shift","date":"2026-09-08","path":"games/2026-09-08-rule-shift/"},
+    {"id":"2026-09-09-heat-sink","title":"Heat Sink","date":"2026-09-09","path":"games/2026-09-09-heat-sink/"},
+    {"id":"2026-09-10-orbit-hitch","title":"Orbit Hitch","date":"2026-09-10","path":"games/2026-09-10-orbit-hitch/"},
+    {"id":"2026-09-12-traceback","title":"Traceback","date":"2026-09-12","path":"games/2026-09-12-traceback/"},
+    {"id":"2026-09-18-tide-lock","title":"Tide Lock","date":"2026-09-18","path":"games/2026-09-18-tide-lock/"},
+    {"id":"2026-09-19-signal-debt","title":"Signal Debt","date":"2026-09-19","path":"games/2026-09-19-signal-debt/"},
+    {"id":"2026-09-20-shadow-market","title":"Shadow Market","date":"2026-09-20","path":"games/2026-09-20-shadow-market/"},
+    {"id":"2026-09-22-anchor-line","title":"Anchor Line","date":"2026-09-22","path":"games/2026-09-22-anchor-line/"}
   ]
 }
