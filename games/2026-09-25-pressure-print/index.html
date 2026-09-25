@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pressure Print</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#241d18;background:#f3eee4}*{box-sizing:border-box}body{margin:0;padding:20px;min-height:100vh}main{max-width:720px;margin:auto}h1{margin:.2em 0}.how{line-height:1.55}.hud{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:14px 0}.card,.pressbox{background:#fff;border:2px solid #342a22;border-radius:12px;padding:12px}.label{font-size:.8rem;color:#66594f}.big{font-size:1.35rem;font-weight:800}.strip{display:flex;gap:6px;margin:12px 0;overflow:hidden}.cell{height:52px;flex:1;min-width:38px;border:2px solid #4a4037;border-radius:6px;background:#fff;position:relative}.cell.now{outline:4px solid #e39b35}.cell.done{opacity:.35}.ink{position:absolute;inset:7px;border-radius:3px;background:#201a17}.gauge{height:20px;background:#ded6ca;border-radius:99px;overflow:hidden;margin:8px 0}.fill{height:100%;width:0;background:#33261f;transition:width .05s linear}.target{height:20px;border-radius:4px;border:1px solid #6b5e53}.forecast{font-weight:700;min-height:1.5em}.pressbox{text-align:center}button{font:inherit;min-height:54px;border:2px solid #342a22;border-radius:10px;padding:10px 16px;background:#fff;cursor:pointer}#press{width:100%;font-weight:800;font-size:1.1rem;background:#f0c26c}#press.active{transform:translateY(2px);background:#e2a94c}#restart{margin-top:10px}.result{font-weight:800;min-height:1.5em;margin:10px 0}@media(max-width:520px){body{padding:12px}.hud{grid-template-columns:1fr 1fr}.hud .card:last-child{grid-column:1/-1}}
+</style><style id="daily-game-direct-header-style">
+#daily-game-direct-header[hidden]{display:none!important}
+#daily-game-direct-header{min-height:56px;padding:max(8px,env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(255,255,255,.16);background:#0b0f17;color:#fff;font:700 14px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+#daily-game-direct-header a{display:inline-flex;align-items:center;min-height:38px;padding:0 12px;border:1px solid rgba(255,255,255,.28);border-radius:10px;color:#fff;text-decoration:none;background:#151b27}
+#daily-game-direct-header strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head><body>
+<header id="daily-game-direct-header" hidden><a href="../../">← ゲーム一覧</a><strong>Daily Game Lab</strong></header>
+<script>if(window.top===window.self){document.getElementById('daily-game-direct-header').hidden=false}</script><main>
+<h1>Pressure Print</h1>
+<p class="how">黄色いボタンを<strong>押している間</strong>インク圧が上がり、<strong>離すと印刷</strong>します。見本の濃さに合わせよう。濃く押すほど次の紙にも圧が残ります。紙送りが「短い」と回復しにくいので注意。</p>
+<div class="hud"><div class="card"><div class="label">現在のインク圧</div><div class="big" id="pressureText">0%</div><div class="gauge"><div class="fill" id="fill"></div></div></div><div class="card"><div class="label">今回の見本濃度</div><div class="target" id="targetSwatch"></div><div class="big" id="targetText"></div></div><div class="card"><div class="label">次への紙送り</div><div class="big" id="gapText"></div><div class="label">離した後の回復量</div></div></div>
+<div class="strip" id="strip" aria-label="8枚の印刷進行"></div>
+<div class="pressbox"><div class="forecast" id="forecast"></div><button id="press">押し続ける（Space / Enter）</button><div class="result" id="status" aria-live="polite"></div><button id="restart">もう一度</button></div>
+</main><script>
+(function(){
+var targets=[24,72,38,82,20,62,34,76], recovery=[28,10,24,8,30,14,22,0];
+var step=0,pressure=0,holding=false,state="playing",last=performance.now(),clean=0,smears=0;
+var status=document.getElementById("status"),button=document.getElementById("press"),fill=document.getElementById("fill"),pressureText=document.getElementById("pressureText"),targetSwatch=document.getElementById("targetSwatch"),targetText=document.getElementById("targetText"),gapText=document.getElementById("gapText"),forecast=document.getElementById("forecast"),strip=document.getElementById("strip");
+function shade(v){return "rgba(32,26,23,"+(0.12+v*.0085)+")"}
+function buildStrip(){strip.innerHTML="";targets.forEach(function(t,i){var c=document.createElement("div");c.className="cell"+(i<step?" done":"")+(i===step?" now":"");c.setAttribute("aria-label",(i+1)+"枚目 見本"+t+"%");var ink=document.createElement("div");ink.className="ink";ink.style.background=shade(t);c.appendChild(ink);strip.appendChild(c)})}
+function update(message){
+ pressure=Math.max(0,Math.min(100,pressure));fill.style.width=pressure+"%";pressureText.textContent=Math.round(pressure)+"%";
+ if(step<8){targetSwatch.style.background=shade(targets[step]);targetText.textContent=targets[step]+"%";gapText.textContent=recovery[step]>=24?"長い":recovery[step]>=18?"普通":"短い";var d=pressure-targets[step];forecast.textContent=pressure>86?"⚠ にじみ危険":Math.abs(d)<=14?"● 見本に近い":d<0?"↑ もう少し押す":"↓ 濃すぎ注意";}else{targetText.textContent="完了";gapText.textContent="—";forecast.textContent=""}
+ if(message!==undefined)status.textContent="きれい "+clean+" / にじみ "+smears+"　"+message;buildStrip();button.classList.toggle("active",holding);button.disabled=state!=="playing";
+}
+function tick(now){if(state!=="playing")return;var dt=Math.min(50,now-last);last=now;if(holding)pressure+=dt*.055;update();requestAnimationFrame(tick)}
+function startHold(){if(state!=="playing"||holding)return;holding=true;last=performance.now();update("押して濃くする…")}
+function stamp(){if(state!=="playing"||!holding)return;holding=false;var target=targets[step],err=Math.abs(pressure-target),msg;if(pressure>86){smears++;msg="にじんだ！"}else if(err<=14){clean++;msg="きれい！"}else{msg=pressure<target?"薄い":"濃すぎ"};var recover=recovery[step];step++;pressure=Math.max(0,pressure-recover);if(smears>=4){state="lost";msg+="　失敗：にじみ4回";}else if(step>=8){state=clean>=5?"won":"lost";msg=state==="won"?"印刷成功！":"失敗：きれいな印刷が5枚未満";}window.__DAILY_GAME__.state=state;update(msg)}
+function restart(){step=0;pressure=0;holding=false;clean=0;smears=0;state="playing";last=performance.now();window.__DAILY_GAME__.state=state;update("最初は見本24%。短く押そう。");requestAnimationFrame(tick)}
+button.addEventListener("pointerdown",function(e){e.preventDefault();button.setPointerCapture&&button.setPointerCapture(e.pointerId);startHold()});
+button.addEventListener("pointerup",function(e){e.preventDefault();stamp()});button.addEventListener("pointercancel",function(){stamp()});
+button.addEventListener("keydown",function(e){if((e.code==="Space"||e.code==="Enter")&&!e.repeat){e.preventDefault();startHold()}});
+button.addEventListener("keyup",function(e){if(e.code==="Space"||e.code==="Enter"){e.preventDefault();stamp()}});
+document.getElementById("restart").onclick=restart;
+window.__DAILY_GAME__={ready:true,state:"playing",restart:restart};restart();
+})();
+</script></body></html>
