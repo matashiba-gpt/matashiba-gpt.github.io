@@ -73,6 +73,12 @@
       "title": "Pressure Print",
       "date": "2026-09-25",
       "path": "games/2026-09-25-pressure-print/"
+    },
+    {
+      "id": "2026-09-26-fog-auction",
+      "title": "Fog Auction",
+      "date": "2026-09-26",
+      "path": "games/2026-09-26-fog-auction/"
     }
   ]
 }
